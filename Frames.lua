@@ -19,6 +19,16 @@ local hider = CreateFrame("Frame")
 hider:Hide()
 
 local function cfg() return HoA.char end
+-- the order button's short names
+local SHORT = { role = "Role", group = "Groups", class = "Class", name = "Name" }
+local function inRaid() return (IsInRaid and IsInRaid()) and true or false end
+
+-- party and raid each have their own place and size; the simulation can ask for either
+local function sizeFor(raid)
+	local c = cfg()
+	if raid then return c.raidWidth or 72, c.raidHeight or 30 end
+	return c.width, c.height
+end
 
 ---------------------------------------------------------------------------
 -- Drawing on one member button
@@ -48,6 +58,18 @@ local function decorate(b)
 	local top = CreateFrame("Frame", nil, b)
 	top:SetAllPoints()
 	top:SetFrameLevel(hp:GetFrameLevel() + 3)
+	-- role: a small shield (tank) or cross (healer) before the name
+	b.role = top:CreateTexture(nil, "OVERLAY")
+	b.role:SetSize(11, 11)
+	b.role:SetPoint("TOPLEFT", 3, -3)
+	b.role:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
+	b.role:Hide()
+	-- raid mark (skull, star, ...) at the top middle, as Blizzard sets it
+	b.mark = top:CreateTexture(nil, "OVERLAY")
+	b.mark:SetSize(14, 14)
+	b.mark:SetPoint("TOP", 0, 2)
+	b.mark:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+	b.mark:Hide()
 	b.name = S:Font(top, 11)
 	b.name:SetPoint("TOPLEFT", 4, -3)
 	b.name:SetPoint("TOPRIGHT", -4, -3)
@@ -166,6 +188,45 @@ local function mana(b, unit)
 	end
 end
 
+local ROLE_COORDS = {
+	TANK = { 0, 19 / 64, 22 / 64, 41 / 64 },
+	HEALER = { 20 / 64, 39 / 64, 1 / 64, 20 / 64 },
+	DAMAGER = { 20 / 64, 39 / 64, 22 / 64, 41 / 64 },
+}
+local ASSIGN_TEX = { MAINTANK = "Interface\\GroupFrame\\UI-Group-MainTankIcon", MAINASSIST = "Interface\\GroupFrame\\UI-Group-MainAssistIcon" }
+
+-- Blizzard's raid mark 1..8 (skull = 8): one cell of a 4x4 sheet
+local function showMark(b, index)
+	if not cfg().raidMarks or type(index) ~= "number" or index < 1 or index > 8 then return b.mark:Hide() end
+	local col, row = (index - 1) % 4, math.floor((index - 1) / 4)
+	b.mark:SetTexCoord(col / 4, (col + 1) / 4, row / 4, (row + 1) / 4)
+	b.mark:Show()
+end
+
+-- tanks and healers get an icon; damage dealers only when asked (less to look at).
+-- A raid's main tank / main assist (set in Blizzard's menu) wins over the role.
+local function showRole(b, role, assigned)
+	local c = cfg()
+	if assigned and c.roleIcons then
+		b.role:SetTexture(ASSIGN_TEX[assigned])
+		b.role:SetTexCoord(0, 1, 0, 1)
+		b.role:Show()
+		b.name:SetPoint("TOPLEFT", 16, -3)
+		return
+	end
+	b.role:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
+	local tc = c.roleIcons and ROLE_COORDS[role]
+	if tc and role == "DAMAGER" and not c.roleDamage then tc = nil end
+	if tc then
+		b.role:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+		b.role:Show()
+		b.name:SetPoint("TOPLEFT", 16, -3)
+	else
+		b.role:Hide()
+		b.name:SetPoint("TOPLEFT", 4, -3)
+	end
+end
+
 local function dispellable(unit)
 	if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then return end
 	local ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, unit, 1, "HARMFUL|RAID_PLAYER_DISPELLABLE")
@@ -195,6 +256,13 @@ function F:Update(b)
 		b.hp:SetStatusBarColor(0.3, 0.8, 0.4)
 	end
 	pcall(b.name.SetText, b.name, UnitName(unit))
+	local assigned
+	if GetPartyAssignment then
+		if Safe(GetPartyAssignment("MAINTANK", unit), false) then assigned = "MAINTANK"
+		elseif Safe(GetPartyAssignment("MAINASSIST", unit), false) then assigned = "MAINASSIST" end
+	end
+	showRole(b, UnitGroupRolesAssigned and Safe(UnitGroupRolesAssigned(unit), "NONE") or "NONE", assigned)
+	showMark(b, GetRaidTargetIndex and Safe(GetRaidTargetIndex(unit), nil))
 	-- missing health when the client shows it, else nothing to calculate
 	local text = ""
 	if offline then text = L["Offline"]
@@ -305,8 +373,11 @@ function F:Build()
 	local anchor = CreateFrame("Frame", "HealersOfAzerothAnchor", UIParent)
 	anchor:SetSize(c.width, c.height)
 	self.anchor = anchor
+	local raidAnchor = CreateFrame("Frame", "HealersOfAzerothRaidAnchor", UIParent)
+	raidAnchor:SetSize(sizeFor(true))
+	self.raidAnchor = raidAnchor
 	local h = CreateFrame("Frame", "HealersOfAzerothHeader", UIParent, "SecureGroupHeaderTemplate")
-	h:SetPoint("TOPLEFT", anchor, "TOPLEFT")
+	self.header = h
 	h:SetAttribute("template", "SecureUnitButtonTemplate,BackdropTemplate")
 	h:SetAttribute("templateType", "Button")
 	h:SetAttribute("point", "TOP")
@@ -317,15 +388,39 @@ function F:Build()
 	h:SetAttribute("groupBy", "GROUP")
 	h:SetAttribute("groupingOrder", "1,2,3,4,5,6,7,8")
 	h:SetAttribute("sortMethod", "INDEX")
-	self.header = h
-	self:Configure()
-	S:RegisterMover(anchor, "group", L["Group frames"], function(fr)
+	self:Place()
+	S:RegisterMover(anchor, "group", L["Party frames"], function(fr)
 		fr:SetPoint("LEFT", UIParent, "LEFT", 220, 40)
 	end, nil, S:Sizing(anchor, "group", { min = { 50, 20 }, max = { 240, 90 }, apply = function(w, h2)
 		c.width, c.height = w or 90, h2 or 38
 		anchor:SetSize(c.width, c.height)
-		HoA:OutOfCombat("hoa-size", function() F:Configure() end)
+		F:SizeChanged()
 	end }))
+	S:RegisterMover(raidAnchor, "raid", L["Raid frames"], function(fr)
+		fr:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 20, -260)
+	end, nil, S:Sizing(raidAnchor, "raid", { min = { 40, 16 }, max = { 200, 80 }, apply = function(w, h2)
+		c.raidWidth, c.raidHeight = w or 72, h2 or 30
+		raidAnchor:SetSize(c.raidWidth, c.raidHeight)
+		F:SizeChanged()
+	end }))
+end
+
+function F:SizeChanged()
+	if self.Preview and self.preview then self:Preview(self.preview) end
+	HoA:OutOfCombat("hoa-size", function() F:Configure() end)
+end
+
+-- the header sits on the party or the raid anchor (out of combat)
+function F:Place()
+	local h = self.header
+	if not h then return end
+	if InCombatLockdown() then return HoA:OutOfCombat("hoa-place", function() F:Place() end) end
+	local raid = inRaid()
+	if self.placedRaid == raid and h:GetPoint() then return end
+	self.placedRaid = raid
+	h:ClearAllPoints()
+	h:SetPoint("TOPLEFT", raid and self.raidAnchor or self.anchor, "TOPLEFT")
+	self:Configure()
 end
 
 -- sizes, who shows, and the click snippet for new buttons (out of combat)
@@ -333,18 +428,33 @@ function F:Configure()
 	local h = self.header
 	if not h or InCombatLockdown() then return HoA:OutOfCombat("hoa-config", function() F:Configure() end) end
 	local c = cfg()
+	local w, hh = sizeFor(inRaid())
 	h:SetAttribute("showPlayer", true)
 	h:SetAttribute("showSolo", c.solo)
 	h:SetAttribute("showParty", c.party)
 	h:SetAttribute("showRaid", c.raid)
 	h:SetAttribute("unitsPerColumn", c.perColumn)
-	-- tanks on top, then healers, then the rest (or by raid group)
-	if c.tanksFirst then
+	-- order: by role (tanks, healers, damage), by raid group, by class, or by name
+	local sort = F:SortMode()
+	local sb = F:SortButton()
+	if sb then
+		for i, v in ipairs(F.SORTS) do if v == sort then sb:SetAttribute("sortIndex", i) end end
+		sb.text:SetText(L[SHORT[sort]])
+		sb:SetShown(c.sortButton ~= false)
+	end
+	h:SetAttribute("sortMethod", sort == "name" and "NAME" or "INDEX")
+	if sort == "role" then
 		h:SetAttribute("groupBy", "ASSIGNEDROLE")
 		h:SetAttribute("groupingOrder", "TANK,HEALER,DAMAGER,NONE")
-	else
+	elseif sort == "class" then
+		h:SetAttribute("groupBy", "CLASS")
+		h:SetAttribute("groupingOrder", "WARRIOR,PALADIN,DEATHKNIGHT,DRUID,PRIEST,SHAMAN,MONK,EVOKER,DEMONHUNTER,ROGUE,HUNTER,MAGE,WARLOCK")
+	elseif sort == "group" then
 		h:SetAttribute("groupBy", "GROUP")
 		h:SetAttribute("groupingOrder", "1,2,3,4,5,6,7,8")
+	else
+		h:SetAttribute("groupBy", nil)
+		h:SetAttribute("groupingOrder", nil)
 	end
 	h:SetAttribute("initialConfigFunction", ([[
 		self:SetWidth(%d)
@@ -353,10 +463,10 @@ function F:Configure()
 		self:SetAttribute("hoaKeys", %q)
 		%s
 		%s
-	]]):format(c.width, c.height, table.concat(HoA.Bindings.HOVER_KEYS, ","),
+	]]):format(w, hh, table.concat(HoA.Bindings.HOVER_KEYS, ","),
 		c.hoverKeys and 'self:SetAttribute("hoaHover", true)' or "", HoA.Bindings:Snippet()))
 	for _, b in ipairs(self:Members()) do
-		b:SetSize(c.width, c.height)
+		b:SetSize(w, hh)
 		HoA.Bindings:Apply(b)
 		b:SetAttribute("hoaHover", c.hoverKeys and true or nil)
 		b:SetAttribute("hoaKeys", table.concat(HoA.Bindings.HOVER_KEYS, ","))
@@ -378,6 +488,77 @@ function F:Configure()
 	elseif c.enabled then h:Show() else h:Hide() end
 	self:HideBlizzard()
 	self:Scan()
+end
+
+F.SORTS = { "role", "group", "class", "name" }
+function F:SortMode()
+	local c = cfg()
+	if c.sortBy then return c.sortBy end
+	return c.tanksFirst == false and "group" or "role" -- older setting
+end
+
+-- next order (/hoa sort), out of combat
+function F:NextSort()
+	local cur, i = self:SortMode(), 1
+	for k, v in ipairs(self.SORTS) do if v == cur then i = k end end
+	cfg().sortBy = self.SORTS[i % #self.SORTS + 1]
+	self:Configure()
+	HoA:Print(L["Order"] .. ": " .. L[F.SORT_LABEL[cfg().sortBy]])
+end
+
+F.SORT_LABEL = { role = "By role: tanks, healers, damage", group = "By raid group", class = "By class", name = "By name" }
+
+-- one click, also in combat: a secure button that changes the header's order
+-- (Blizzard's own restricted code; the header redraws itself)
+function F:SortButton()
+	local h = self.header
+	if self.sortBtn or not h or not SecureHandlerSetFrameRef then return self.sortBtn end
+	local b = CreateFrame("Button", "HealersOfAzerothSortButton", h, "SecureHandlerClickTemplate,BackdropTemplate")
+	b:SetSize(64, 14)
+	b:SetPoint("BOTTOMLEFT", h, "TOPLEFT", 0, 2)
+	S:Backdrop(b, 0.8)
+	b.text = S:Font(b, 9)
+	b.text:SetPoint("CENTER")
+	b.text:SetTextColor(unpack(S.colors.muted))
+	b:RegisterForClicks("AnyUp")
+	SecureHandlerSetFrameRef(b, "header", h)
+	b:SetAttribute("_onclick", [[
+		local i = (self:GetAttribute("sortIndex") or 1) % 4 + 1
+		self:SetAttribute("sortIndex", i)
+		local h = self:GetFrameRef("header")
+		if i == 1 then
+			h:SetAttribute("sortMethod", "INDEX")
+			h:SetAttribute("groupingOrder", "TANK,HEALER,DAMAGER,NONE")
+			h:SetAttribute("groupBy", "ASSIGNEDROLE")
+		elseif i == 2 then
+			h:SetAttribute("sortMethod", "INDEX")
+			h:SetAttribute("groupingOrder", "1,2,3,4,5,6,7,8")
+			h:SetAttribute("groupBy", "GROUP")
+		elseif i == 3 then
+			h:SetAttribute("sortMethod", "INDEX")
+			h:SetAttribute("groupingOrder", "WARRIOR,PALADIN,DEATHKNIGHT,DRUID,PRIEST,SHAMAN,MONK,EVOKER,DEMONHUNTER,ROGUE,HUNTER,MAGE,WARLOCK")
+			h:SetAttribute("groupBy", "CLASS")
+		else
+			h:SetAttribute("groupBy", nil)
+			h:SetAttribute("groupingOrder", nil)
+			h:SetAttribute("sortMethod", "NAME")
+		end
+	]])
+	b:HookScript("OnClick", function(self)
+		local mode = F.SORTS[self:GetAttribute("sortIndex") or 1]
+		cfg().sortBy = mode
+		self.text:SetText(L[SHORT[mode]])
+		if not InCombatLockdown() then F:Scan() end
+	end)
+	b:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText(L["Order"] .. ": " .. L[F.SORT_LABEL[F:SortMode()]], 1, 1, 1)
+		GameTooltip:AddLine(L["Click: next order (also in combat)."], 0.6, 0.65, 0.71, true)
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	self.sortBtn = b
+	return b
 end
 
 -- hover keys: while the mouse is on a frame, 1..5 click it with "hoverN".
@@ -416,6 +597,132 @@ function F:HideBlizzard()
 	end
 end
 
+---------------------------------------------------------------------------
+-- Simulation: made-up members to see, move and resize the party or raid
+-- frames. Plain frames (no clicks), out of combat only.
+---------------------------------------------------------------------------
+local ICON = "Interface\\Icons\\"
+local FAKE = {
+	{ "Tank", "WARRIOR", 0.62, { aggro = true, role = "TANK" } },
+	{ "You", nil, 1, { hot = "Spell_Holy_Renew", role = "DAMAGER" } },
+	{ "Healer", "PRIEST", 0.85, { mana = 0.7, role = "HEALER" } },
+	{ "Mage", "MAGE", 0.34, { need = true, dispel = "Spell_Holy_DispelMagic", hot = "Spell_Holy_PowerWordShield" } },
+	{ "Rogue", "ROGUE", 0.9, { buff = true } },
+}
+local RAID_CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+
+local function fakeMember(i, raid)
+	if not raid and FAKE[i] then return FAKE[i] end
+	if raid and i <= 5 then return FAKE[i] end
+	local class = RAID_CLASSES[(i * 7) % #RAID_CLASSES + 1]
+	local hp = ((i * 37) % 100) / 100
+	return { L["Member"] .. " " .. i, class, math.max(0.08, hp), { dead = (i % 13 == 0) } }
+end
+
+F.preview = nil
+local pool = {}
+function F:Preview(mode)
+	if InCombatLockdown() then mode = nil end
+	self.preview = mode
+	for _, b in ipairs(pool) do b:Hide() end
+	if self.header then pcall(self.header.SetAlpha, self.header, mode and 0 or 1) end
+	self:PreviewBar(mode)
+	if not mode then return end
+	local raid = mode == "raid"
+	local w, h = sizeFor(raid)
+	local anchor = raid and self.raidAnchor or self.anchor
+	local n, per = raid and 20 or 5, cfg().perColumn or 5
+	local _, myClass = UnitClass("player")
+	for i = 1, n do
+		local b = pool[i]
+		if not b then
+			b = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+			b:SetFrameStrata("MEDIUM")
+			decorate(b)
+			pool[i] = b
+		end
+		b:SetSize(w, h)
+		local col, row = math.floor((i - 1) / per), (i - 1) % per
+		b:ClearAllPoints()
+		b:SetPoint("TOPLEFT", anchor, "TOPLEFT", col * (w + 3), -row * (h + 3))
+		local m = fakeMember(i, raid)
+		local name, class, hp, o = m[1], m[2] or myClass, m[3], m[4]
+		local cc = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+		b.hp:SetMinMaxValues(0, 100)
+		b.hp:SetValue(o.dead and 0 or hp * 100)
+		if cc then b.hp:SetStatusBarColor(cc.r, cc.g, cc.b) end
+		b.inc:SetMinMaxValues(0, 100)
+		b.inc:SetValue(hp < 0.7 and not o.dead and 12 or 0)
+		b.inc:SetWidth(w)
+		b.name:SetText(name)
+		showRole(b, o.role or (raid and (i == 7 or i == 8) and "HEALER") or "DAMAGER", raid and (i == 1 and "MAINTANK" or i == 6 and "MAINTANK" or i == 2 and "MAINASSIST") or nil)
+		showMark(b, (i == 1 and 8) or (i == 6 and 1) or nil)
+		b.info:SetText(o.dead and L["Dead"] or (cfg().deficit and hp < 1 and ("-" .. math.floor((1 - hp) * 4000))) or "")
+		b.aggro:SetShown(o.aggro and true or false)
+		b.need:SetShown(o.need and cfg().nextHeal and true or false)
+		b.buff:SetTexture(ICON .. "Spell_Holy_WordFortitude")
+		b.buff:SetShown(o.buff and cfg().buffs and true or false)
+		b.dispel:SetTexture(o.dispel and (ICON .. o.dispel) or nil)
+		b.dispel:SetShown(o.dispel and true or false)
+		b:SetBackdropBorderColor(unpack(o.dispel and DISPEL_COLORS.Magic or { 0, 0, 0 }))
+		for k, ic in ipairs(b.hots) do
+			local show = k == 1 and o.hot and cfg().hots
+			if show then ic.tex:SetTexture(ICON .. o.hot) end
+			ic:SetShown(show and true or false)
+		end
+		b.mana:SetMinMaxValues(0, 1)
+		b.mana:SetValue(o.mana or 0)
+		b.mana:SetShown(o.mana and cfg().healerMana and true or false)
+		b:SetAlpha(i % 11 == 0 and 0.45 or 1) -- one out of range
+		b:Show()
+	end
+end
+
+-- a small bar while simulating: party, raid, done
+function F:PreviewBar(mode)
+	local bar = self.pbar
+	if not bar and not mode then return end
+	if not bar then
+		bar = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+		bar:SetSize(420, 52)
+		bar:SetPoint("TOP", 0, -120)
+		bar:SetFrameStrata("DIALOG")
+		S:Backdrop(bar, 0.95)
+		bar.text = S:Font(bar, 11)
+		bar.text:SetPoint("TOPLEFT", 10, -8)
+		bar.text:SetText(L["Simulation: drag the blue box to move, its corner to resize."])
+		local function btn(label, x, fn)
+			local b = CreateFrame("Button", nil, bar, "BackdropTemplate")
+			b:SetSize(90, 20)
+			b:SetPoint("BOTTOMLEFT", x, 6)
+			S:Backdrop(b, 1)
+			b.text = S:Font(b, 11)
+			b.text:SetPoint("CENTER")
+			b.text:SetText(label)
+			b:SetScript("OnClick", fn)
+			b:SetScript("OnEnter", function() b:SetBackdropBorderColor(unpack(S.colors.accent)) end)
+			b:SetScript("OnLeave", function() b:SetBackdropBorderColor(0, 0, 0, 1) end)
+			return b
+		end
+		bar.party = btn(L["Party"], 10, function() F:Simulate("party") end)
+		bar.raid = btn(L["Raid"], 106, function() F:Simulate("raid") end)
+		bar.done = btn(L["Done"], 320, function() F:Simulate(nil) end)
+		self.pbar = bar
+	end
+	bar:SetShown(mode and true or false)
+	if mode then
+		bar.party.text:SetTextColor(unpack(mode == "party" and S.colors.accent or S.colors.text))
+		bar.raid.text:SetTextColor(unpack(mode == "raid" and S.colors.accent or S.colors.text))
+	end
+end
+
+-- start, switch or stop: unlocks the frames while it runs
+function F:Simulate(mode)
+	if InCombatLockdown() then return HoA:Print(L["Not in combat: try again after the fight."]) end
+	self:Preview(mode)
+	HoA:SetFramesLocked(not mode)
+end
+
 function F:OnEnable()
 	self:Build()
 	local ev = CreateFrame("Frame")
@@ -427,11 +734,16 @@ function F:OnEnable()
 		local b = unit and byUnit[unit]
 		if b then pcall(F.Update, F, b) end
 	end)
-	HoA:On("GROUP_ROSTER_UPDATE", function() C_Timer.After(0.2, function() pcall(F.Scan, F) end) end)
+	HoA:On("GROUP_ROSTER_UPDATE", function() C_Timer.After(0.2, function() pcall(F.Place, F) pcall(F.Scan, F) end) end)
 	HoA:On("PLAYER_ROLES_ASSIGNED", function() C_Timer.After(0.2, function() pcall(F.Scan, F) end) end)
+	HoA:On("RAID_TARGET_UPDATE", function() pcall(F.Scan, F) end)
 	-- the buff marks only show out of combat: refresh when it ends
 	HoA:On("PLAYER_REGEN_ENABLED", function() C_Timer.After(0.5, function() pcall(F.Scan, F) end) end)
-	HoA:On("PLAYER_REGEN_DISABLED", function() for _, b in pairs(byUnit) do if b.buff then b.buff:Hide() end end end)
+	HoA:On("PLAYER_REGEN_DISABLED", function()
+		for _, b in pairs(byUnit) do if b.buff then b.buff:Hide() end end
+		if F.preview then F:Preview(nil) HoA:SetFramesLocked(true) end
+	end)
+	HoA:Listen("SETTINGS", function() if F.preview then F:Preview(F.preview) end end)
 	HoA:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(1, function() pcall(F.Scan, F) end) end)
 	HoA:Listen("BINDINGS", function() HoA:OutOfCombat("hoa-config", function() F:Configure() end) end)
 	HoA:Listen("SETTINGS", function(group) if group == "frames" then HoA:OutOfCombat("hoa-config", function() F:Configure() end) end end)

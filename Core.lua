@@ -23,6 +23,8 @@ local charDefaults = {
 	hideBlizzard = true,  -- Blizzard's party and raid frames out of sight
 	width = 90,           -- one member
 	height = 38,
+	raidWidth = 72,       -- one member in a raid (its own place and size)
+	raidHeight = 30,
 	perColumn = 5,
 	incoming = true,      -- incoming heals on the bars
 	deficit = true,       -- "-1234" missing health (when the client shows it)
@@ -30,7 +32,12 @@ local charDefaults = {
 	nextHeal = true,      -- a gold edge on who needs a heal most
 	buffs = true,         -- a small mark when someone misses your class buff
 	healerMana = true,    -- a thin mana bar for healers (and you)
-	tanksFirst = true,    -- tanks on top, then healers, then the rest
+	roleIcons = true,     -- a shield (tank) or cross (healer) before the name
+	roleDamage = false,   -- also a sword for damage dealers
+	raidMarks = true,     -- Blizzard's raid marks (skull, star, ...) on the frames
+	sortBy = nil,         -- "role", "group" (raid groups), "class", "name"; nil: from tanksFirst
+	tanksFirst = true,
+	sortButton = true,    -- the small order button above the frames (one click, also in combat)    -- tanks on top, then healers, then the rest
 	showWhen = "smart",   -- "always", "group" (only in a group), "smart" (group, or solo in combat)
 	hoverKeys = false,    -- mouse over a frame + 1..5 casts (Clique style)
 	editorWithSpellbook = true, -- the click editor opens next to your spellbook
@@ -172,13 +179,19 @@ SlashCmdList.HEALERSOFAZEROTH = function(msg)
 	elseif msg == "unlock" or msg == "lock" then
 		HoA:SetFramesLocked(msg == "lock")
 		HoA:Print(msg == "lock" and L["Frames locked."] or L["Frames unlocked: drag the frames where you like, drag the corner to make them bigger, type /hoa lock when done."])
+	elseif msg == "sort" then
+		if InCombatLockdown() then return HoA:Print(L["Not in combat: try again after the fight."]) end
+		HoA.Frames:NextSort()
+	elseif msg == "test" or msg == "sim" then
+		local F = HoA.Frames
+		F:Simulate(F.preview == nil and "party" or F.preview == "party" and "raid" or nil)
 	elseif msg == "clicks" or msg == "editor" then
 		HoA.Editor:Toggle()
 	elseif msg == "toggle" then
 		HoA.char.enabled = not HoA.char.enabled
 		HoA:Fire("SETTINGS", "frames")
 	else
-		HoA:Print(L["/hoa: settings. /hoa clicks: edit your clicks. /hoa toggle: frames on/off. /hoa unlock: move and resize."])
+		HoA:Print(L["/hoa: settings. /hoa clicks: edit your clicks. /hoa test: simulate party, raid, off. /hoa sort: next order. /hoa toggle: frames on/off. /hoa unlock: move and resize."])
 	end
 end
 

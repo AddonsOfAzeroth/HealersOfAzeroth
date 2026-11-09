@@ -55,7 +55,7 @@ local function slot(parent, key)
 		if GetCursorInfo and GetCursorInfo() == "spell" then return drop(self) end
 		if button == "RightButton" then
 			if InCombatLockdown() then return end
-			HoA.Bindings:Set(self.key, IsShiftKeyDown() and "target" or "none")
+			HoA.Bindings:Set(self.key, IsShiftKeyDown() and "target" or IsControlKeyDown() and "menu" or "none")
 			E:Render()
 		end
 	end)
@@ -64,7 +64,7 @@ local function slot(parent, key)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		GameTooltip:SetText(HoA.Bindings:Label(self.key), 1, 1, 1)
 		GameTooltip:AddLine(L["Drag a spell from your spellbook here."], 0.6, 0.65, 0.71, true)
-		GameTooltip:AddLine(L["Right-click: empty. Shift + right-click: target."], 0.6, 0.65, 0.71, true)
+		GameTooltip:AddLine(L["Right-click: empty. Shift + right-click: target. Ctrl + right-click: Blizzard's menu."], 0.6, 0.65, 0.71, true)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(0, 0, 0, 1) GameTooltip:Hide() end)

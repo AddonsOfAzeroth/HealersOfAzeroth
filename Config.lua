@@ -12,58 +12,63 @@ local function opt(key)
 	return function() return HoA.char[key] end, function(v) HoA.char[key] = v HoA:Fire("SETTINGS", "frames") end
 end
 
-function C.Build(p)
-	local B = HoA.Bindings
+-- three short pages: the frames, what shows on them, your clicks
+C.PAGES = {
+	{ key = "hoa", label = "Group frames" },
+	{ key = "hoaShow", label = "On the frames" },
+	{ key = "hoaClicks", label = "Your clicks" },
+}
+
+function C.BuildFrames(p)
 	p:Header("Healers of Azeroth")
 	p:Note(L["Click a group member to heal them: every click is yours, on Blizzard's own secure buttons. Changes take effect out of combat."])
 	p:Check(L["Group frames on"], nil, opt("enabled"))
+	p:Choice(L["Show the frames"], { { "smart", L["In a group, or alone in combat"] }, { "group", L["Only in a group"] }, { "always", L["Always"] } }, opt("showWhen"))
 	p:Check(L["Show your own frame when you are alone"], L["Handy to try your clicks."], opt("solo"))
 	p:Check(L["In a party"], nil, opt("party"))
 	p:Check(L["In a raid"], nil, opt("raid"))
 	p:Check(L["Hide Blizzard's party and raid frames"], L["Takes effect after /reload when you turn it off."], opt("hideBlizzard"))
+	p:Choice(L["Members per column"], { { 5, "5" }, { 8, "8" }, { 10, "10" }, { 20, "20" }, { 40, "40" } }, opt("perColumn"))
+	p:Choice(L["Order"], { { "role", L["By role: tanks, healers, damage"] }, { "group", L["By raid group"] }, { "class", L["By class"] }, { "name", L["By name"] } },
+		function() return HoA.Frames:SortMode() end, function(v) HoA.char.sortBy = v HoA:Fire("SETTINGS", "frames") end)
+	p:Check(L["Order button above the frames"], L["Click: next order (also in combat)."], opt("sortButton"))
+	p:Gap()
+	p:Note(L["See, move and resize the frames with made-up members:"])
+	p:Button(L["Simulate party"], function() HoA.Frames:Simulate("party") end, 160)
+	p:Button(L["Simulate raid"], function() HoA.Frames:Simulate("raid") end, 160)
+end
+
+function C.BuildShow(p)
+	p:Header(L["On the frames"])
 	p:Check(L["Incoming heals on the bars"], nil, opt("incoming"))
 	p:Check(L["Missing health (-1234)"], L["Only when the game shows the numbers (often hidden in combat)."], opt("deficit"))
-	p:Choice(L["Show the frames"], { { "smart", L["In a group, or alone in combat"] }, { "group", L["Only in a group"] }, { "always", L["Always"] } }, opt("showWhen"))
-	p:Choice(L["Members per column"], { { 5, "5" }, { 8, "8" }, { 10, "10" }, { 20, "20" }, { 40, "40" } }, opt("perColumn"))
-	p:Check(L["Tanks first"], L["Tanks on top, then healers, then the rest."], opt("tanksFirst"))
-	p:Gap()
-	p:Header(L["On the frames"])
+	p:Check(L["Role icon: tank and healer"], nil, opt("roleIcons"))
+	p:Check(L["Also for damage dealers"], nil, opt("roleDamage"))
+	p:Check(L["Raid marks (skull, star, ...)"], nil, opt("raidMarks"))
+	p:Note(L["Main tank, main assist and marks: set them in Blizzard's menu on a frame (a click set to Menu, e.g. Ctrl + right-click in the click editor). They show here and on everyone's Blizzard frames."])
 	p:Check(L["Your HoTs and shields with their time"], nil, opt("hots"))
 	p:Check(L["Gold edge on who needs a heal most"], nil, opt("nextHeal"))
 	p:Check(L["Mark when your class buff is missing"], L["Alt + middle click gives it."], opt("buffs"))
 	p:Check(L["Mana bar for healers"], nil, opt("healerMana"))
 	p:Note(L["A dispel icon shows on the right of a frame when you can remove something."])
-	p:Gap()
+end
+
+function C.BuildClicks(p)
+	local B = HoA.Bindings
 	p:Header(L["Your clicks"])
-	p:Button(L["Open the click editor"], function() HoA.Editor:Show() end, 200)
 	p:Note(L["Drag spells from your spellbook onto the slots, or press Record and click a spell the way you want to cast it."])
+	p:Button(L["Open the click editor"], function() HoA.Editor:Show() end, 200)
 	p:Check(L["Open the editor with the spellbook"], nil, opt("editorWithSpellbook"))
 	p:Check(L["Hover keys: mouse over a frame + 1 to 5"], L["Like Clique: these keys only cast while your mouse is on a frame."], function() return HoA.char.hoverKeys end, function(v) HoA.char.hoverKeys = v HoA:Fire("BINDINGS") end)
-	local opts = { { "target", L["Target"] }, { "menu", L["Menu"] }, { "none", L["Nothing"] } }
-	for _, name in ipairs(B:Candidates()) do opts[#opts + 1] = { name, name } end
-	for _, m in ipairs(B.MODS) do
-		for _, b in ipairs(B.BUTTONS) do
-			local key = m[1] .. b[1]
-			local label = (m[2] ~= "" and (L[m[2]] .. " + ") or "") .. L[b[2]]
-			p:Choice(label, opts, function()
-				local kind, spell = B:Resolve(key)
-				if kind == "spell" then return spell end
-				if kind == "togglemenu" then return "menu" end
-				return kind or "none"
-			end, function(v) B:Set(key, v) end)
-		end
-	end
-	for i, k in ipairs(B.HOVER_KEYS) do
-		local key = "hover" .. i
-		p:Choice(L["Key"] .. " " .. k, opts, function()
-			local kind, spell = B:Resolve(key)
-			if kind == "spell" then return spell end
-			if kind == "togglemenu" then return "menu" end
-			return kind or "none"
-		end, function(v) B:Set(key, v) end)
-	end
 	p:Gap()
 	p:Button(L["Back to the class defaults"], function() B:Reset() end, 200)
+end
+
+C.PAGES[1].build, C.PAGES[2].build, C.PAGES[3].build = C.BuildFrames, C.BuildShow, C.BuildClicks
+
+-- everything on one page (kept for callers that want it)
+function C.Build(p)
+	C.BuildFrames(p) p:Gap() C.BuildShow(p) p:Gap() C.BuildClicks(p)
 end
 
 ---------------------------------------------------------------------------
@@ -148,12 +153,19 @@ end
 local category
 local function standalone()
 	if not (Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory) then return end
-	local panel = CreateFrame("Frame")
-	panel:Hide()
-	local page = setmetatable({ frame = panel, y = -16 }, Page)
-	C.Build(page)
-	category = Settings.RegisterCanvasLayoutCategory(panel, "Healers of Azeroth")
+	local function panel(build)
+		local f = CreateFrame("Frame")
+		f:Hide()
+		build(setmetatable({ frame = f, y = -16 }, Page))
+		return f
+	end
+	category = Settings.RegisterCanvasLayoutCategory(panel(C.BuildFrames), "Healers of Azeroth")
 	Settings.RegisterAddOnCategory(category)
+	-- the other pages as sub-pages when the client has them, else one long page
+	if Settings.RegisterCanvasLayoutSubcategory then
+		Settings.RegisterCanvasLayoutSubcategory(category, panel(C.BuildShow), L["On the frames"])
+		Settings.RegisterCanvasLayoutSubcategory(category, panel(C.BuildClicks), L["Your clicks"])
+	end
 end
 
 function HoA:ToggleConfig()
@@ -172,7 +184,9 @@ function C:OnEnable()
 	if c then
 		c.configPages = type(c.configPages) == "table" and c.configPages or {}
 		for _, d in ipairs(c.configPages) do if d.key == "hoa" then return end end
-		table.insert(c.configPages, { key = "hoa", label = L["Group frames"], group = "Healers of Azeroth", build = C.Build })
+		for _, pg in ipairs(C.PAGES) do
+			table.insert(c.configPages, { key = pg.key, label = L[pg.label], group = "Healers of Azeroth", build = pg.build })
+		end
 	else
 		standalone()
 	end
