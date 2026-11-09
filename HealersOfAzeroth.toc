@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Healers of Azeroth
+## Notes: Group frames you heal by clicking, like HealBot and Clique: left, right, middle, with Shift, Ctrl or Alt. Every heal is your click.
+## Notes-nlNL: Groepsframes die je healt door te klikken, zoals HealBot en Clique: links, rechts, midden, met Shift, Ctrl of Alt. Elke heal is jouw klik.
+## Author: DinX
+## Version: 0.1.0
+## IconTexture: Interface\Icons\Spell_Holy_FlashHeal
+## SavedVariables: HealersOfAzerothDB
+## SavedVariablesPerCharacter: HealersOfAzerothCharDB
+## OptionalDeps: CastersOfAzeroth
+
+Core.lua
+Locale.lua
+Style.lua
+Bindings.lua
+Frames.lua
+Config.lua
