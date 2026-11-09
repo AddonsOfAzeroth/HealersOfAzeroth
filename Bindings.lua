@@ -137,9 +137,9 @@ function B:Snippet()
 		for _, m in ipairs(self.MODS) do
 			local key = m[1] .. b[1]
 			local kind, spell = self:Resolve(key)
-			if kind then
+			if type(kind) == "string" then
 				lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format(m[1] .. "type" .. b[1], kind)
-				if spell then lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format(m[1] .. "spell" .. b[1], spell) end
+				if type(spell) == "string" then lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format(m[1] .. "spell" .. b[1], spell) end
 			end
 		end
 	end
