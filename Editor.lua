@@ -194,7 +194,9 @@ function E:Build()
 	local w = PAD * 2 + LABEL_W + cols * (SLOT + GAP)
 	local f = CreateFrame("Frame", "HealersOfAzerothEditor", UIParent, "BackdropTemplate")
 	S:Backdrop(f, 0.97)
-	f:SetFrameStrata("DIALOG")
+	-- above settings windows (also Casters', which is a DIALOG too)
+	f:SetFrameStrata("FULLSCREEN_DIALOG")
+	f:SetToplevel(true)
 	f:SetMovable(true)
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
@@ -312,17 +314,35 @@ function E:Render()
 	self.hoverCheck:SetChecked(HoA.char.hoverKeys and true or false)
 end
 
--- open it, next to `anchor` (the spellbook) when given
+-- the window a button sits in (walk up to the frame on UIParent)
+local function windowOf(frame)
+	for _ = 1, 20 do
+		local p = frame and frame.GetParent and frame:GetParent()
+		if not p or p == UIParent then return frame end
+		frame = p
+	end
+	return frame
+end
+
+-- open it next to `anchor` (the spellbook, or the settings window a button is
+-- in): on the right when it fits, else on the left; never on top of it
 function E:Show(anchor)
 	if not self.frame then self:Build() end
 	local f = self.frame
 	f:ClearAllPoints()
-	if anchor and anchor.GetRight and anchor:GetRight() then
-		f:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 6, 0)
+	anchor = anchor and windowOf(anchor)
+	if anchor and anchor ~= UIParent and anchor.GetRight and anchor:GetRight() then
+		local room = (UIParent:GetRight() or 0) - anchor:GetRight()
+		if room >= f:GetWidth() + 6 then
+			f:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 6, 0)
+		else
+			f:SetPoint("TOPRIGHT", anchor, "TOPLEFT", -6, 0)
+		end
 	else
 		f:SetPoint("CENTER")
 	end
 	f:Show()
+	f:Raise()
 	self:Render()
 end
 

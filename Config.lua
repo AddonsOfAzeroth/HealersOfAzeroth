@@ -57,7 +57,7 @@ function C.BuildClicks(p)
 	local B = HoA.Bindings
 	p:Header(L["Your clicks"])
 	p:Note(L["Drag spells from your spellbook onto the slots, or press Record and click a spell the way you want to cast it."])
-	p:Button(L["Open the click editor"], function() HoA.Editor:Show() end, 200)
+	p:Button(L["Open the click editor"], function(btn) HoA.Editor:Show(btn) end, 200)
 	p:Check(L["Open the editor with the spellbook"], nil, opt("editorWithSpellbook"))
 	p:Check(L["Hover keys: mouse over a frame + 1 to 5"], L["Like Clique: these keys only cast while your mouse is on a frame."], function() return HoA.char.hoverKeys end, function(v) HoA.char.hoverKeys = v HoA:Fire("BINDINGS") end)
 	p:Gap()
