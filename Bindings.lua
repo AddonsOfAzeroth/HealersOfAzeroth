@@ -11,6 +11,16 @@ local B = HoA:NewModule("Bindings")
 
 B.BUTTONS = { { 1, "Left" }, { 2, "Right" }, { 3, "Middle" } }
 B.MODS = { { "", "" }, { "shift-", "Shift" }, { "ctrl-", "Ctrl" }, { "alt-", "Alt" } }
+-- hover keys: mouse over a frame and press one of these (only while hovering)
+B.HOVER_KEYS = { "1", "2", "3", "4", "5" }
+
+-- your class buff (the missing-buff mark; Alt + middle click gives it)
+B.CLASS_BUFF = {
+	PRIEST = { "Power Word: Fortitude", "Prayer of Fortitude" },
+	DRUID = { "Mark of the Wild", "Gift of the Wild" },
+	MAGE = { "Arcane Intellect", "Arcane Brilliance" },
+	PALADIN = { "Blessing of Kings", "Greater Blessing of Kings", "Blessing of Might", "Greater Blessing of Might" },
+}
 
 -- per class: click -> spells, the first one you know is used (a spell by name
 -- casts its highest rank)
@@ -19,29 +29,38 @@ local DEFAULTS = {
 		["1"] = { "Flash Heal", "Lesser Heal" }, ["2"] = { "Renew" }, ["3"] = { "Prayer of Mending", "Heal", "Lesser Heal" },
 		["shift-1"] = { "Power Word: Shield" }, ["shift-2"] = { "Greater Heal", "Heal", "Lesser Heal" },
 		["ctrl-1"] = { "Dispel Magic" }, ["ctrl-2"] = { "Abolish Disease", "Cure Disease" },
-		["alt-1"] = { "Circle of Healing", "Prayer of Healing" }, ["alt-2"] = { "Resurrection" },
+		["alt-1"] = { "Circle of Healing", "Prayer of Healing" }, ["alt-2"] = { "Resurrection" }, ["alt-3"] = { "Power Word: Fortitude" },
+		hover1 = { "Flash Heal", "Lesser Heal" }, hover2 = { "Renew" }, hover3 = { "Power Word: Shield" },
+		hover4 = { "Greater Heal", "Heal", "Lesser Heal" }, hover5 = { "Dispel Magic" },
 	},
 	DRUID = {
 		["1"] = { "Healing Touch" }, ["2"] = { "Rejuvenation" }, ["3"] = { "Lifebloom", "Regrowth" },
 		["shift-1"] = { "Regrowth" }, ["shift-2"] = { "Swiftmend" },
 		["ctrl-1"] = { "Remove Curse" }, ["ctrl-2"] = { "Abolish Poison", "Cure Poison" },
-		["alt-1"] = { "Wild Growth", "Tranquility" }, ["alt-2"] = { "Rebirth" },
+		["alt-1"] = { "Wild Growth", "Tranquility" }, ["alt-2"] = { "Rebirth" }, ["alt-3"] = { "Mark of the Wild" },
+		hover1 = { "Healing Touch" }, hover2 = { "Rejuvenation" }, hover3 = { "Regrowth" },
+		hover4 = { "Swiftmend" }, hover5 = { "Remove Curse" },
 	},
 	SHAMAN = {
 		["1"] = { "Healing Wave" }, ["2"] = { "Lesser Healing Wave", "Healing Wave" }, ["3"] = { "Earth Shield" },
 		["shift-1"] = { "Chain Heal" }, ["shift-2"] = { "Riptide", "Lesser Healing Wave" },
 		["ctrl-1"] = { "Cure Toxins", "Cure Poison" }, ["ctrl-2"] = { "Cure Disease" },
 		["alt-2"] = { "Ancestral Spirit" },
+		hover1 = { "Healing Wave" }, hover2 = { "Lesser Healing Wave", "Healing Wave" }, hover3 = { "Chain Heal" },
+		hover4 = { "Earth Shield" }, hover5 = { "Cure Toxins", "Cure Poison" },
 	},
 	PALADIN = {
 		["1"] = { "Flash of Light", "Holy Light" }, ["2"] = { "Holy Light" }, ["3"] = { "Beacon of Light", "Blessing of Light" },
 		["shift-1"] = { "Holy Shock" }, ["shift-2"] = { "Lay on Hands" },
 		["ctrl-1"] = { "Cleanse", "Purify" }, ["ctrl-2"] = { "Blessing of Protection" },
-		["alt-2"] = { "Redemption" },
+		["alt-2"] = { "Redemption" }, ["alt-3"] = { "Blessing of Kings", "Blessing of Might" },
+		hover1 = { "Flash of Light", "Holy Light" }, hover2 = { "Holy Light" }, hover3 = { "Holy Shock" },
+		hover4 = { "Cleanse", "Purify" }, hover5 = { "Lay on Hands" },
 	},
 	MAGE = {
 		["ctrl-1"] = { "Remove Curse", "Remove Lesser Curse" },
-		["shift-1"] = { "Arcane Intellect" }, ["shift-2"] = { "Amplify Magic", "Dampen Magic" },
+		["shift-1"] = { "Arcane Intellect" }, ["shift-2"] = { "Amplify Magic", "Dampen Magic" }, ["alt-3"] = { "Arcane Intellect" },
+		hover1 = { "Remove Curse", "Remove Lesser Curse" },
 	},
 }
 
@@ -91,6 +110,10 @@ function B:Get()
 			end
 		end
 	end
+	for i = 1, #self.HOVER_KEYS do
+		local key = "hover" .. i
+		if c.bindings[key] == nil then c.bindings[key] = defaultFor(key) or { action = "none" } end
+	end
 	return c.bindings
 end
 
@@ -128,6 +151,22 @@ function B:Apply(button)
 			button:SetAttribute(m[1] .. "spell" .. b[1], spell)
 		end
 	end
+	-- hover keys press a virtual button "hoverN" on the frame under the mouse
+	for i = 1, #self.HOVER_KEYS do
+		local kind, spell = self:Resolve("hover" .. i)
+		button:SetAttribute("type-hover" .. i, kind)
+		button:SetAttribute("spell-hover" .. i, spell)
+	end
+end
+
+-- the snippet a frame runs when the mouse enters it: bind the hover keys to it
+function B:HoverEnter()
+	if not HoA.char.hoverKeys then return "" end
+	local lines = {}
+	for i, key in ipairs(self.HOVER_KEYS) do
+		lines[#lines + 1] = ("self:SetBindingClick(true, %q, self, %q)"):format(key, "hover" .. i)
+	end
+	return table.concat(lines, "\n")
 end
 
 -- the same as a snippet for frames the group header makes later (in combat too)
@@ -141,6 +180,13 @@ function B:Snippet()
 				lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format(m[1] .. "type" .. b[1], kind)
 				if type(spell) == "string" then lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format(m[1] .. "spell" .. b[1], spell) end
 			end
+		end
+	end
+	for i = 1, #self.HOVER_KEYS do
+		local kind, spell = self:Resolve("hover" .. i)
+		if type(kind) == "string" then
+			lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format("type-hover" .. i, kind)
+			if type(spell) == "string" then lines[#lines + 1] = ("self:SetAttribute(%q, %q)"):format("spell-hover" .. i, spell) end
 		end
 	end
 	return table.concat(lines, "\n")

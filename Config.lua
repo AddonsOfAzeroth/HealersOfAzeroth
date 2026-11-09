@@ -23,9 +23,22 @@ function C.Build(p)
 	p:Check(L["Hide Blizzard's party and raid frames"], L["Takes effect after /reload when you turn it off."], opt("hideBlizzard"))
 	p:Check(L["Incoming heals on the bars"], nil, opt("incoming"))
 	p:Check(L["Missing health (-1234)"], L["Only when the game shows the numbers (often hidden in combat)."], opt("deficit"))
+	p:Choice(L["Show the frames"], { { "smart", L["In a group, or alone in combat"] }, { "group", L["Only in a group"] }, { "always", L["Always"] } }, opt("showWhen"))
 	p:Choice(L["Members per column"], { { 5, "5" }, { 8, "8" }, { 10, "10" }, { 20, "20" }, { 40, "40" } }, opt("perColumn"))
+	p:Check(L["Tanks first"], L["Tanks on top, then healers, then the rest."], opt("tanksFirst"))
+	p:Gap()
+	p:Header(L["On the frames"])
+	p:Check(L["Your HoTs and shields with their time"], nil, opt("hots"))
+	p:Check(L["Gold edge on who needs a heal most"], nil, opt("nextHeal"))
+	p:Check(L["Mark when your class buff is missing"], L["Alt + middle click gives it."], opt("buffs"))
+	p:Check(L["Mana bar for healers"], nil, opt("healerMana"))
+	p:Note(L["A dispel icon shows on the right of a frame when you can remove something."])
 	p:Gap()
 	p:Header(L["Your clicks"])
+	p:Button(L["Open the click editor"], function() HoA.Editor:Show() end, 200)
+	p:Note(L["Drag spells from your spellbook onto the slots, or press Record and click a spell the way you want to cast it."])
+	p:Check(L["Open the editor with the spellbook"], nil, opt("editorWithSpellbook"))
+	p:Check(L["Hover keys: mouse over a frame + 1 to 5"], L["Like Clique: these keys only cast while your mouse is on a frame."], function() return HoA.char.hoverKeys end, function(v) HoA.char.hoverKeys = v HoA:Fire("BINDINGS") end)
 	local opts = { { "target", L["Target"] }, { "menu", L["Menu"] }, { "none", L["Nothing"] } }
 	for _, name in ipairs(B:Candidates()) do opts[#opts + 1] = { name, name } end
 	for _, m in ipairs(B.MODS) do
@@ -39,6 +52,15 @@ function C.Build(p)
 				return kind or "none"
 			end, function(v) B:Set(key, v) end)
 		end
+	end
+	for i, k in ipairs(B.HOVER_KEYS) do
+		local key = "hover" .. i
+		p:Choice(L["Key"] .. " " .. k, opts, function()
+			local kind, spell = B:Resolve(key)
+			if kind == "spell" then return spell end
+			if kind == "togglemenu" then return "menu" end
+			return kind or "none"
+		end, function(v) B:Set(key, v) end)
 	end
 	p:Gap()
 	p:Button(L["Back to the class defaults"], function() B:Reset() end, 200)

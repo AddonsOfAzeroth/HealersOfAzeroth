@@ -26,6 +26,14 @@ local charDefaults = {
 	perColumn = 5,
 	incoming = true,      -- incoming heals on the bars
 	deficit = true,       -- "-1234" missing health (when the client shows it)
+	hots = true,          -- your own HoTs and shields as small icons with their time
+	nextHeal = true,      -- a gold edge on who needs a heal most
+	buffs = true,         -- a small mark when someone misses your class buff
+	healerMana = true,    -- a thin mana bar for healers (and you)
+	tanksFirst = true,    -- tanks on top, then healers, then the rest
+	showWhen = "smart",   -- "always", "group" (only in a group), "smart" (group, or solo in combat)
+	hoverKeys = false,    -- mouse over a frame + 1..5 casts (Clique style)
+	editorWithSpellbook = true, -- the click editor opens next to your spellbook
 	bindings = nil,       -- set from the class defaults on first use (Bindings.lua)
 	bars = { locked = true },
 	points = {},
@@ -164,11 +172,13 @@ SlashCmdList.HEALERSOFAZEROTH = function(msg)
 	elseif msg == "unlock" or msg == "lock" then
 		HoA:SetFramesLocked(msg == "lock")
 		HoA:Print(msg == "lock" and L["Frames locked."] or L["Frames unlocked: drag the frames where you like, drag the corner to make them bigger, type /hoa lock when done."])
+	elseif msg == "clicks" or msg == "editor" then
+		HoA.Editor:Toggle()
 	elseif msg == "toggle" then
 		HoA.char.enabled = not HoA.char.enabled
 		HoA:Fire("SETTINGS", "frames")
 	else
-		HoA:Print(L["/hoa: settings (your clicks). /hoa toggle: frames on/off. /hoa unlock: move and resize."])
+		HoA:Print(L["/hoa: settings. /hoa clicks: edit your clicks. /hoa toggle: frames on/off. /hoa unlock: move and resize."])
 	end
 end
 
