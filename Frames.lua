@@ -631,7 +631,7 @@ function F:Preview(mode)
 	local raid = mode == "raid"
 	local w, h = sizeFor(raid)
 	local anchor = raid and self.raidAnchor or self.anchor
-	local n, per = raid and 20 or 5, cfg().perColumn or 5
+	local n, per = raid and 40 or 5, cfg().perColumn or 5 -- Forever has 40-player raids
 	local _, myClass = UnitClass("player")
 	for i = 1, n do
 		local b = pool[i]
