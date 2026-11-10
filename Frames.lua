@@ -358,6 +358,11 @@ function F:Scan()
 	wipe(byUnit)
 	for _, b in ipairs(self:Members()) do
 		decorate(b)
+		-- all mouse buttons (not available inside the secure setup snippet)
+		if not b.hoaClicks and not InCombatLockdown() then
+			b:RegisterForClicks("AnyUp")
+			b.hoaClicks = true
+		end
 		if not b.hoaBound and not InCombatLockdown() then
 			HoA.Bindings:Apply(b)
 			b.hoaBound = true
@@ -459,7 +464,6 @@ function F:Configure()
 	h:SetAttribute("initialConfigFunction", ([[
 		self:SetWidth(%d)
 		self:SetHeight(%d)
-		self:RegisterForClicks("AnyUp")
 		self:SetAttribute("hoaKeys", %q)
 		%s
 		%s
