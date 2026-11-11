@@ -10,6 +10,7 @@
 ## SavedVariablesPerCharacter: HealersOfAzerothCharDB
 ## OptionalDeps: CastersOfAzeroth
 
+Hub.lua
 Core.lua
 Locale.lua
 Style.lua
@@ -17,3 +18,4 @@ Bindings.lua
 Frames.lua
 Editor.lua
 Config.lua
+HubEntry.lua
