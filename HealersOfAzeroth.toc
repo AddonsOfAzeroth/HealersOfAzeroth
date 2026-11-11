@@ -1,4 +1,5 @@
 ## Interface: 16001
+## Category: Addons of Azeroth
 ## Title: Healers of Azeroth
 ## Notes: Group frames you heal by clicking, like HealBot and Clique: left, right, middle, with Shift, Ctrl or Alt. Every heal is your click.
 ## Notes-nlNL: Groepsframes die je healt door te klikken, zoals HealBot en Clique: links, rechts, midden, met Shift, Ctrl of Alt. Elke heal is jouw klik.
