@@ -16,6 +16,7 @@ Locale.lua
 Style.lua
 Bindings.lua
 Frames.lua
+Everywhere.lua
 Editor.lua
 Config.lua
 HubEntry.lua

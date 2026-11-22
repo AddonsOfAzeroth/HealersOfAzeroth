@@ -44,6 +44,7 @@ local charDefaults = {
 		plate = "none",   -- "none" (keys 1..5, as before), "12" (1..=), "6" (1..6), "2" (mouse 4 and 5)
 		mods = true,      -- also Shift, Ctrl and Alt + each plate key (Synapse Hypershift)
 	},
+	hoverEverywhere = true, -- the hover keys also over any friendly unit (Everywhere.lua)
 	hoverTooltip = false, -- on a frame: a tooltip with what your plate keys do
 	editorWithSpellbook = true, -- the click editor opens next to your spellbook
 	bindings = nil,       -- set from the class defaults on first use (Bindings.lua)
@@ -192,11 +193,13 @@ SlashCmdList.HEALERSOFAZEROTH = function(msg)
 		F:Simulate(F.preview == nil and "party" or F.preview == "party" and "raid" or nil)
 	elseif msg == "clicks" or msg == "editor" then
 		HoA.Editor:Toggle()
+	elseif msg == "hover" then
+		HoA.Everywhere:Report()
 	elseif msg == "toggle" then
 		HoA.char.enabled = not HoA.char.enabled
 		HoA:Fire("SETTINGS", "frames")
 	else
-		HoA:Print(L["/hoa: settings. /hoa clicks: edit your clicks. /hoa test: simulate party, raid, off. /hoa sort: next order. /hoa toggle: frames on/off. /hoa unlock: move and resize."])
+		HoA:Print(L["/hoa: settings. /hoa clicks: edit your clicks. /hoa test: simulate party, raid, off. /hoa sort: next order. /hoa hover: which hover keys cast everywhere. /hoa toggle: frames on/off. /hoa unlock: move and resize."])
 	end
 end
 

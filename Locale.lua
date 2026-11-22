@@ -52,7 +52,7 @@ for k, v in pairs({
 	-- slash
 	["Frames locked."] = "Kaders vergrendeld.",
 	["Frames unlocked: drag the frames where you like, drag the corner to make them bigger, type /hoa lock when done."] = "Kaders ontgrendeld: sleep de frames waar je wil, sleep de hoek om ze groter te maken, typ /hoa lock als je klaar bent.",
-	["/hoa: settings. /hoa clicks: edit your clicks. /hoa test: simulate party, raid, off. /hoa sort: next order. /hoa toggle: frames on/off. /hoa unlock: move and resize."] = "/hoa: instellingen. /hoa clicks: je klikken aanpassen. /hoa test: party, raid of uit simuleren. /hoa sort: volgende volgorde. /hoa toggle: frames aan/uit. /hoa unlock: verplaatsen en groter maken.",
+	["/hoa: settings. /hoa clicks: edit your clicks. /hoa test: simulate party, raid, off. /hoa sort: next order. /hoa hover: which hover keys cast everywhere. /hoa toggle: frames on/off. /hoa unlock: move and resize."] = "/hoa: instellingen. /hoa clicks: je klikken aanpassen. /hoa test: party, raid of uit simuleren. /hoa sort: volgende volgorde. /hoa hover: welke hover-toetsen overal casten. /hoa toggle: frames aan/uit. /hoa unlock: verplaatsen en groter maken.",
 	-- simulation, roles, party/raid
 	["Party frames"] = "Groepsframes",
 	["Order"] = "Volgorde",
@@ -124,4 +124,14 @@ for k, v in pairs({
 	["Mouse over a frame + a plate key"] = "Muis op een frame + een toets van de plaat",
 	["Hover keys"] = "Hover-toetsen",
 	["Mouse"] = "Muis",
+	-- hover everywhere
+	["Hover everywhere: other frames, nameplates and characters too"] = "Overal hoveren: ook andere frames, naambalkjes en personages",
+	["Your hover keys also cast on any friendly player or NPC under the mouse: other add-ons' frames, Blizzard's frames, nameplates and the world. Over nothing friendly a key does what it did before."] = "Je hover-toetsen casten ook op elke vriendelijke speler of NPC onder de muis: frames van andere add-ons, Blizzards frames, naambalkjes en de wereld. Op niets vriendelijks doet een toets wat hij vroeger deed.",
+	["Only friendly targets (always on): a harmful spell is never cast this way."] = "Alleen vriendelijke doelen (altijd aan): zo wordt nooit een schadelijke spell gecast.",
+	["Hover everywhere is off."] = "Overal hoveren staat uit.",
+	["Hover everywhere: %d keys."] = "Overal hoveren: %d toetsen.",
+	["left alone"] = "niet overgenomen",
+	["harmful spell"] = "schadelijke spell",
+	["macro too long"] = "macro te lang",
+	["try again"] = "probeer opnieuw",
 }) do NL[k] = v end
