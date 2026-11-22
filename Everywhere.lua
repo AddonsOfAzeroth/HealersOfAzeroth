@@ -269,5 +269,14 @@ function V:OnEnable()
 			if group == "naga" or group == "bars" then C_Timer.After(0.5, function() V:Schedule() end) end
 		end)
 	end
+	-- Nagas of Azeroth owns the Naga bar now: follow its key changes too
+	local n = _G.NagasOfAzeroth
+	if n and n.Listen then
+		n:Listen("NAGA_CHANGED", function()
+			-- Nagas also fires this on the UPDATE_BINDINGS our own rebuild causes: skip those
+			if now() < (V.quietUntil or 0) then return end
+			C_Timer.After(0.5, function() V:Schedule() end)
+		end)
+	end
 	self:Schedule()
 end
