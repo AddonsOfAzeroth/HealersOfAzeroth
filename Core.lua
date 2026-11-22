@@ -40,6 +40,11 @@ local charDefaults = {
 	sortButton = true,    -- the small order button above the frames (one click, also in combat)    -- tanks on top, then healers, then the rest
 	showWhen = "smart",   -- "always", "group" (only in a group), "smart" (group, or solo in combat)
 	hoverKeys = false,    -- mouse over a frame + 1..5 casts (Clique style)
+	naga = {              -- Razer Naga side plate for the hover keys (Bindings.lua)
+		plate = "none",   -- "none" (keys 1..5, as before), "12" (1..=), "6" (1..6), "2" (mouse 4 and 5)
+		mods = true,      -- also Shift, Ctrl and Alt + each plate key (Synapse Hypershift)
+	},
+	hoverTooltip = false, -- on a frame: a tooltip with what your plate keys do
 	editorWithSpellbook = true, -- the click editor opens next to your spellbook
 	bindings = nil,       -- set from the class defaults on first use (Bindings.lua)
 	bars = { locked = true },

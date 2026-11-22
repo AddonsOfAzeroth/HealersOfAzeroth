@@ -112,4 +112,16 @@ for k, v in pairs({
 	["Now click a spell in your spellbook with the click you want (Shift + right, ...), or point at it and press 1 to 5."] = "Klik nu een spell in je spellboek met de klik die je wil (Shift + rechts, ...), of wijs hem aan en druk 1 tot 5.",
 	["Click a spell in your spellbook the way you want to cast it. It is not cast, only saved."] = "Klik een spell in je spellboek zoals je hem wil casten. Hij wordt niet gecast, alleen opgeslagen.",
 	["Drag: make it bigger so more fits. Double-click: default size."] = "Slepen: groter maken zodat er meer in past. Dubbelklik: standaardgrootte.",
+	-- Razer Naga side plates
+	["Razer Naga side plate"] = "Razer Naga-zijplaat",
+	["None: keys 1 to 5"] = "Geen: toetsen 1 tot 5",
+	["12 keys: 1 to ="] = "12 toetsen: 1 tot =",
+	["6 keys: 1 to 6"] = "6 toetsen: 1 tot 6",
+	["2 keys: mouse 4 and 5"] = "2 toetsen: muis 4 en 5",
+	["Also Shift, Ctrl and Alt + each plate key"] = "Ook Shift, Ctrl en Alt + elke toets van de plaat",
+	["Set Synapse's Hypershift to Shift, Ctrl or Alt: four layers on one plate."] = "Zet Hypershift in Synapse op Shift, Ctrl of Alt: vier lagen op één plaat.",
+	["Tooltip on a frame: what your hover keys do"] = "Tooltip op een frame: wat je hover-toetsen doen",
+	["Mouse over a frame + a plate key"] = "Muis op een frame + een toets van de plaat",
+	["Hover keys"] = "Hover-toetsen",
+	["Mouse"] = "Muis",
 }) do NL[k] = v end

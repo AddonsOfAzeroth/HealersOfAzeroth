@@ -467,13 +467,13 @@ function F:Configure()
 		self:SetAttribute("hoaKeys", %q)
 		%s
 		%s
-	]]):format(w, hh, table.concat(HoA.Bindings.HOVER_KEYS, ","),
+	]]):format(w, hh, HoA.Bindings:HoverKeyList(),
 		c.hoverKeys and 'self:SetAttribute("hoaHover", true)' or "", HoA.Bindings:Snippet()))
 	for _, b in ipairs(self:Members()) do
 		b:SetSize(w, hh)
 		HoA.Bindings:Apply(b)
 		b:SetAttribute("hoaHover", c.hoverKeys and true or nil)
-		b:SetAttribute("hoaKeys", table.concat(HoA.Bindings.HOVER_KEYS, ","))
+		b:SetAttribute("hoaKeys", HoA.Bindings:HoverKeyList())
 		b.hoaBound = true
 		F:WrapHover(b)
 	end
@@ -565,8 +565,20 @@ function F:SortButton()
 	return b
 end
 
--- hover keys: while the mouse is on a frame, 1..5 click it with "hoverN".
--- Blizzard's secure snippets set and clear those keys (allowed in combat).
+-- hover keys: while the mouse is on a frame, its keys (1..5, or the Naga
+-- plate's keys with Shift, Ctrl, Alt) click it with "hoverN". Blizzard's secure
+-- snippets set and clear those keys (allowed in combat; what the keys do is set
+-- out of combat, in the attributes "hoaKeys" and "[mod-]type-hoverN").
+--
+-- Priority: SetBindingClick(true, ...) makes a *priority* override binding,
+-- owned by this frame. WoW looks up a key as: priority overrides, then normal
+-- overrides (SetOverrideBinding without isPriority, e.g. Casters of Azeroth's
+-- Naga bar), then your own key bindings (action bars). So while you hover a
+-- frame the plate keys heal, whatever else is on them. ClearBindings() on leave
+-- (or when the frame hides under the mouse) removes only the bindings this
+-- frame owns: the Naga bar's and the action bars' come back untouched. An
+-- other add-on that also uses a priority override on the same key: the one set
+-- last wins, which is ours, set on every enter.
 local hoverHandler
 function F:WrapHover(b)
 	if b.hoaHover or InCombatLockdown() or not SecureHandlerWrapScript then return end
@@ -576,15 +588,42 @@ function F:WrapHover(b)
 		if self:GetAttribute("hoaHover") then
 			local keys = self:GetAttribute("hoaKeys")
 			if keys then
-				local i = 0
-				for key in keys:gmatch("[^,]+") do
-					i = i + 1
-					self:SetBindingClick(true, key, self, "hover" .. i)
+				for key, button in keys:gmatch("([^ ,]+) ([^,]+)") do
+					self:SetBindingClick(true, key, self, button)
 				end
 			end
 		end
 	]])
 	SecureHandlerWrapScript(b, "OnLeave", hoverHandler, [[ self:ClearBindings() ]])
+	SecureHandlerWrapScript(b, "OnHide", hoverHandler, [[ self:ClearBindings() ]])
+	-- optional: a tooltip with what the plate keys do (the layer of the
+	-- modifier you hold); only text, nothing secure
+	b:HookScript("OnEnter", function(self) F:HoverTip(self) end)
+	b:HookScript("OnLeave", function(self) if GameTooltip:GetOwner() == self then GameTooltip:Hide() end F.tipFor = nil end)
+end
+
+local function heldMod()
+	if IsShiftKeyDown() then return "shift-" end
+	if IsControlKeyDown() then return "ctrl-" end
+	if IsAltKeyDown() then return "alt-" end
+	return ""
+end
+
+function F:HoverTip(b)
+	local c = cfg()
+	if not (c.hoverTooltip and c.hoverKeys) then return end
+	local B = HoA.Bindings
+	local mod = heldMod()
+	if #B:HoverMods() == 1 then mod = "" end
+	local lines = B:HoverLines(mod)
+	if #lines == 0 then return end
+	self.tipFor = b
+	GameTooltip:SetOwner(b, "ANCHOR_BOTTOM")
+	local u = b:GetAttribute("unit")
+	local name = u and UnitName(u)
+	GameTooltip:SetText(not HoA.IsSecret(name) and type(name) == "string" and name or L["Hover keys"], 1, 1, 1)
+	for _, l in ipairs(lines) do GameTooltip:AddDoubleLine(l[1], l[2], 0.55, 0.75, 1, 1, 1, 1) end
+	GameTooltip:Show()
 end
 
 -- Blizzard's party and raid frames out of sight (when asked)
@@ -750,6 +789,7 @@ function F:OnEnable()
 	HoA:Listen("SETTINGS", function() if F.preview then F:Preview(F.preview) end end)
 	HoA:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(1, function() pcall(F.Scan, F) end) end)
 	HoA:Listen("BINDINGS", function() HoA:OutOfCombat("hoa-config", function() F:Configure() end) end)
+	HoA:On("MODIFIER_STATE_CHANGED", function() if F.tipFor then F:HoverTip(F.tipFor) end end)
 	HoA:Listen("SETTINGS", function(group) if group == "frames" then HoA:OutOfCombat("hoa-config", function() F:Configure() end) end end)
 	-- range fades a few times a second
 	C_Timer.NewTicker(0.3, function()

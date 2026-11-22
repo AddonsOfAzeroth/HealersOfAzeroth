@@ -105,22 +105,30 @@ function E:Cover()
 	if self.cover then return self.cover end
 	local c = CreateFrame("Button", nil, UIParent)
 	c:SetFrameStrata("TOOLTIP")
-	c:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
+	c:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp", "Button4Up", "Button5Up")
 	c.edge = c:CreateTexture(nil, "OVERLAY")
 	c.edge:SetAllPoints()
 	c.edge:SetColorTexture(S.colors.hint[1], S.colors.hint[2], S.colors.hint[3], 0.18)
 	c:Hide()
 	c:SetScript("OnClick", function(self, button)
+		-- mouse 4 and 5: the hover keys of the 2-button plate
+		local side = button and button:match("^Button([45])$")
+		if side then return E.OnCoverKey(self, "BUTTON" .. side) end
 		local nr = BUTTON_NR[button]
 		if not (nr and self.name) then return end
 		local m, mlabel = mods()
 		E:Record(m .. nr, self.name, (mlabel and (mlabel .. " + ") or "") .. L[HoA.Bindings.BUTTONS[nr][2]])
 	end)
-	c:SetScript("OnKeyDown", function(self, key)
-		for i, k in ipairs(HoA.Bindings.HOVER_KEYS) do
+	-- a hover key on the spell under the mouse: record it
+	function E.OnCoverKey(self, key)
+		local B = HoA.Bindings
+		for _, k in ipairs(B:HoverKeys()) do
 			if key == k and self.name then
 				self:SetPropagateKeyboardInput(false)
-				E:Record("hover" .. i, self.name, L["Key"] .. " " .. k)
+				-- with Shift, Ctrl or Alt held: that layer (when the plate has layers)
+				local m, mlabel = "", nil
+				if #B:HoverMods() > 1 then m, mlabel = mods() end
+				E:Record(B:HoverName(m, k), self.name, L["Key"] .. " " .. B:KeyLabel(k, mlabel))
 				if not HoA.char.hoverKeys then
 					HoA.char.hoverKeys = true
 					HoA:Fire("BINDINGS")
@@ -129,7 +137,8 @@ function E:Cover()
 			end
 		end
 		self:SetPropagateKeyboardInput(true)
-	end)
+	end
+	c:SetScript("OnKeyDown", E.OnCoverKey)
 	c:SetScript("OnEnter", function(self)
 		if not self.id then return end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -270,39 +279,96 @@ function E:Build()
 		HoA:Fire("BINDINGS")
 		E:Render()
 	end)
-	local hl = S:Font(f, 11)
-	hl:SetPoint("LEFT", self.hoverCheck, "RIGHT", 2, 0)
-	hl:SetText(L["Mouse over a frame + key 1 to 5"])
+	self.hoverLabel = S:Font(f, 11)
+	self.hoverLabel:SetPoint("LEFT", self.hoverCheck, "RIGHT", 2, 0)
+	self.hoverLabel:SetText(L["Mouse over a frame + key 1 to 5"])
 	y = y - 26
-	local hw = math.floor((w - PAD * 2 - (#B.HOVER_KEYS - 1) * GAP) / #B.HOVER_KEYS)
-	for i, key in ipairs(B.HOVER_KEYS) do
-		local s = slot(f, "hover" .. i)
-		s:SetWidth(hw)
-		s:SetPoint("TOPLEFT", PAD + (i - 1) * (hw + GAP), y)
-		s.keyLabel = S:Font(s, 10)
-		s.keyLabel:SetPoint("TOPLEFT", 3, -2)
-		s.keyLabel:SetText(key)
-		s.keyLabel:SetTextColor(unpack(S.colors.hint))
-		self.slots[#self.slots + 1] = s
+	-- the modifier layers of a Naga plate: Plain, Shift, Ctrl, Alt (one shows)
+	self.layer = ""
+	self.layerBtns = {}
+	local lw = math.floor((w - PAD * 2 - 3 * GAP) / 4)
+	for i, m in ipairs(B.MODS) do
+		local lb = CreateFrame("Button", nil, f, "BackdropTemplate")
+		lb:SetSize(lw, 18)
+		lb:SetPoint("TOPLEFT", PAD + (i - 1) * (lw + GAP), y)
+		S:Backdrop(lb, 1)
+		lb.text = S:Font(lb, 10)
+		lb.text:SetPoint("CENTER")
+		lb.text:SetText(m[2] ~= "" and L[m[2]] or L["Plain"])
+		lb.mod = m[1]
+		lb:SetScript("OnClick", function(self) E.layer = self.mod E:LayoutHover() E:Render() end)
+		self.layerBtns[i] = lb
 	end
-	y = y - (SLOT - 16) - PAD
-	local note = S:Font(f, 10)
-	note:SetPoint("TOPLEFT", PAD, y)
-	note:SetWidth(w - PAD * 2)
-	note:SetJustifyH("LEFT")
-	note:SetTextColor(unpack(S.colors.muted))
-	note:SetText(L["Drag spells from your spellbook onto the slots: heals, buffs, dispels, anything that targets a friend."])
-	y = y - 30
+	self.hoverTop = y
+	self.hoverPool = {}
+	self.clickSlots = #self.slots
+	self.note = S:Font(f, 10)
+	self.note:SetWidth(w - PAD * 2)
+	self.note:SetJustifyH("LEFT")
+	self.note:SetTextColor(unpack(S.colors.muted))
+	self.note:SetText(L["Drag spells from your spellbook onto the slots: heals, buffs, dispels, anything that targets a friend."])
 	self.status = S:Font(f, 11)
-	self.status:SetPoint("TOPLEFT", PAD, y)
 	self.status:SetWidth(w - PAD * 2)
 	self.status:SetJustifyH("LEFT")
-	f:SetSize(w, -y + 36)
+	self.width = w
 	self.frame = f
+	self:LayoutHover()
+end
+
+-- the hover keys in the plate's own shape: 1 to 5 in a row, the 12 plate
+-- 3 wide and 4 high, the 6 plate 2 x 3, the 2 plate one above the other
+function E:LayoutHover()
+	local B, f, w = HoA.Bindings, self.frame, self.width
+	local plate = B.PLATES[B:Plate()]
+	local layered = #B:HoverMods() > 1
+	if not layered then self.layer = "" end
+	self.layoutFor = B:Plate() .. tostring(layered)
+	self.hoverLabel:SetText(B:Plate() == "none" and L["Mouse over a frame + key 1 to 5"] or L["Mouse over a frame + a plate key"])
+	local y = self.hoverTop
+	for _, lb in ipairs(self.layerBtns) do
+		lb:SetShown(layered)
+		lb:SetBackdropBorderColor(unpack(lb.mod == self.layer and S.colors.accent or { 0, 0, 0, 1 }))
+	end
+	if layered then y = y - 18 - GAP end
+	for i = #self.slots, self.clickSlots + 1, -1 do self.slots[i] = nil end
+	for _, s in ipairs(self.hoverPool) do s:Hide() end
+	local cols = plate.cols
+	local hw = math.floor((w - PAD * 2 - (cols - 1) * GAP) / cols)
+	local modLabel = ""
+	for _, m in ipairs(B.MODS) do if m[1] == self.layer then modLabel = m[2] end end
+	local rows = 0
+	for i, key in ipairs(plate.keys) do
+		local s = self.hoverPool[i]
+		if not s then
+			s = slot(f, "")
+			s.keyLabel = S:Font(s, 10)
+			s.keyLabel:SetPoint("TOPLEFT", 3, -2)
+			s.keyLabel:SetTextColor(unpack(S.colors.hint))
+			self.hoverPool[i] = s
+		end
+		local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+		rows = row + 1
+		s.key = B:HoverName(self.layer, key)
+		s:SetWidth(hw)
+		s:ClearAllPoints()
+		s:SetPoint("TOPLEFT", PAD + col * (hw + GAP), y - row * (SLOT - 16 + GAP))
+		s.keyLabel:SetText(B:KeyLabel(key, modLabel))
+		s:Show()
+		self.slots[#self.slots + 1] = s
+	end
+	y = y - rows * (SLOT - 16 + GAP) - PAD + GAP
+	self.note:ClearAllPoints()
+	self.note:SetPoint("TOPLEFT", PAD, y)
+	y = y - 30
+	self.status:ClearAllPoints()
+	self.status:SetPoint("TOPLEFT", PAD, y)
+	f:SetSize(w, -y + 36)
 end
 
 function E:Render()
 	if not (self.frame and self.frame:IsShown()) then return end
+	local B = HoA.Bindings
+	if self.layoutFor ~= B:Plate() .. tostring(#B:HoverMods() > 1) then self:LayoutHover() end
 	for _, s in ipairs(self.slots) do
 		local kind, spell = HoA.Bindings:Resolve(s.key)
 		local tex = kind == "spell" and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spell)
