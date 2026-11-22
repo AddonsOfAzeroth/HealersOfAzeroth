@@ -116,7 +116,7 @@ for k, v in pairs({
 	["Razer Naga side plate"] = "Razer Naga-zijplaat",
 	["None: keys 1 to 5"] = "Geen: toetsen 1 tot 5",
 	["12 keys: 1 to ="] = "12 toetsen: 1 tot =",
-	["6 keys: 1 to 6"] = "6 toetsen: 1 tot 6",
+	["6 keys: 4 5 6 and 1 2 3"] = "6 toetsen: 4 5 6 en 1 2 3",
 	["2 keys: mouse 4 and 5"] = "2 toetsen: muis 4 en 5",
 	["Also Shift, Ctrl and Alt + each plate key"] = "Ook Shift, Ctrl en Alt + elke toets van de plaat",
 	["Set Synapse's Hypershift to Shift, Ctrl or Alt: four layers on one plate."] = "Zet Hypershift in Synapse op Shift, Ctrl of Alt: vier lagen op één plaat.",

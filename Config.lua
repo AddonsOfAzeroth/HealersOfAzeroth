@@ -67,7 +67,7 @@ function C.BuildClicks(p)
 	p:Check(L["Hover everywhere: other frames, nameplates and characters too"], L["Your hover keys also cast on any friendly player or NPC under the mouse: other add-ons' frames, Blizzard's frames, nameplates and the world. Over nothing friendly a key does what it did before."],
 		function() return HoA.char.hoverEverywhere ~= false end, function(v) HoA.char.hoverEverywhere = v HoA:Fire("BINDINGS") end)
 	p:Note(L["Only friendly targets (always on): a harmful spell is never cast this way."])
-	p:Choice(L["Razer Naga side plate"], { { "none", L["None: keys 1 to 5"] }, { "12", L["12 keys: 1 to ="] }, { "6", L["6 keys: 1 to 6"] }, { "2", L["2 keys: mouse 4 and 5"] } },
+	p:Choice(L["Razer Naga side plate"], { { "none", L["None: keys 1 to 5"] }, { "12", L["12 keys: 1 to ="] }, { "6", L["6 keys: 4 5 6 and 1 2 3"] }, { "2", L["2 keys: mouse 4 and 5"] } },
 		function() return B:Plate() end, function(v) B:SetPlate(v) end)
 	p:Check(L["Also Shift, Ctrl and Alt + each plate key"], L["Set Synapse's Hypershift to Shift, Ctrl or Alt: four layers on one plate."], naga("mods"))
 	p:Check(L["Tooltip on a frame: what your hover keys do"], nil, opt("hoverTooltip"))
