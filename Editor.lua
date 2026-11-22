@@ -122,13 +122,15 @@ function E:Cover()
 	-- a hover key on the spell under the mouse: record it
 	function E.OnCoverKey(self, key)
 		local B = HoA.Bindings
-		for _, k in ipairs(B:HoverKeys()) do
+		local info = B:PlateInfo()
+		for i, k in ipairs(info.keys) do
 			if key == k and self.name then
 				self:SetPropagateKeyboardInput(false)
 				-- with Shift, Ctrl or Alt held: that layer (when the plate has layers)
 				local m, mlabel = "", nil
 				if #B:HoverMods() > 1 then m, mlabel = mods() end
-				E:Record(B:HoverName(m, k), self.name, L["Key"] .. " " .. B:KeyLabel(k, mlabel))
+				if m == "shift-" and not B:ShiftOn() then m, mlabel = "", nil end
+				E:Record(B:HoverName(m, info.ids[i]), self.name, L["Key"] .. " " .. B:KeyLabel(k, mlabel))
 				if not HoA.char.hoverKeys then
 					HoA.char.hoverKeys = true
 					HoA:Fire("BINDINGS")
@@ -319,14 +321,15 @@ end
 -- 3 wide and 4 high, the 6 plate 2 x 3, the 2 plate one above the other
 function E:LayoutHover()
 	local B, f, w = HoA.Bindings, self.frame, self.width
-	local plate = B.PLATES[B:Plate()]
+	local plate = B:PlateInfo()
 	local layered = #B:HoverMods() > 1
-	if not layered then self.layer = "" end
-	self.layoutFor = B:Plate() .. tostring(layered)
+	if not layered or (self.layer == "shift-" and not B:ShiftOn()) then self.layer = "" end
+	self.layoutFor = self:LayoutSig()
 	self.hoverLabel:SetText(B:Plate() == "none" and L["Mouse over a frame + key 1 to 5"] or L["Mouse over a frame + a plate key"])
 	local y = self.hoverTop
 	for _, lb in ipairs(self.layerBtns) do
-		lb:SetShown(layered)
+		-- no Shift tab while numpad keys keep the Shift layer off
+		lb:SetShown(layered and (lb.mod ~= "shift-" or B:ShiftOn()))
 		lb:SetBackdropBorderColor(unpack(lb.mod == self.layer and S.colors.accent or { 0, 0, 0, 1 }))
 	end
 	if layered then y = y - 18 - GAP end
@@ -348,7 +351,7 @@ function E:LayoutHover()
 		end
 		local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
 		rows = row + 1
-		s.key = B:HoverName(self.layer, key)
+		s.key = B:HoverName(self.layer, plate.ids[i])
 		s:SetWidth(hw)
 		s:ClearAllPoints()
 		s:SetPoint("TOPLEFT", PAD + col * (hw + GAP), y - row * (SLOT - 16 + GAP))
@@ -365,10 +368,20 @@ function E:LayoutHover()
 	f:SetSize(w, -y + 36)
 end
 
+-- what the hover part is laid out for: plate, keys and layers
+function E:LayoutSig()
+	local B = HoA.Bindings
+	local info = B:PlateInfo()
+	return B:Plate() .. "|" .. table.concat((function()
+		local t = {}
+		for i, k in ipairs(info.keys) do t[i] = k or "" end
+		return t
+	end)(), ",") .. "|" .. #B:HoverMods()
+end
+
 function E:Render()
 	if not (self.frame and self.frame:IsShown()) then return end
-	local B = HoA.Bindings
-	if self.layoutFor ~= B:Plate() .. tostring(#B:HoverMods() > 1) then self:LayoutHover() end
+	if self.layoutFor ~= self:LayoutSig() then self:LayoutHover() end
 	for _, s in ipairs(self.slots) do
 		local kind, spell = HoA.Bindings:Resolve(s.key)
 		local tex = kind == "spell" and C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spell)

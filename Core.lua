@@ -41,7 +41,10 @@ local charDefaults = {
 	showWhen = "smart",   -- "always", "group" (only in a group), "smart" (group, or solo in combat)
 	hoverKeys = false,    -- mouse over a frame + 1..5 casts (Clique style)
 	naga = {              -- Razer Naga side plate for the hover keys (Bindings.lua)
-		plate = "none",   -- "none" (keys 1..5, as before), "12" (1..=), "6" (1..6), "2" (mouse 4 and 5)
+		plate = "none",   -- "none" (keys 1..5, as before), "12" (3 x 4), "6" (2 x 3), "2" (mouse 4 and 5)
+		keyset = "standard", -- the keys the Synapse buttons send: "standard" (1..=), "numpad" (Num1..Num+), "learned"
+		-- learned = { ["6"] = { [1] = "NUMPAD1", ... } }, -- from Nagas of Azeroth's learn mode (button number -> key)
+		shift = "auto",   -- the Shift layer: "auto" (off with numpad keys: NumLock eats Shift), true or false
 		mods = true,      -- also Shift, Ctrl and Alt + each plate key (Synapse Hypershift)
 	},
 	hoverEverywhere = true, -- the hover keys also over any friendly unit (Everywhere.lua)

@@ -67,9 +67,17 @@ function C.BuildClicks(p)
 	p:Check(L["Hover everywhere: other frames, nameplates and characters too"], L["Your hover keys also cast on any friendly player or NPC under the mouse: other add-ons' frames, Blizzard's frames, nameplates and the world. Over nothing friendly a key does what it did before."],
 		function() return HoA.char.hoverEverywhere ~= false end, function(v) HoA.char.hoverEverywhere = v HoA:Fire("BINDINGS") end)
 	p:Note(L["Only friendly targets (always on): a harmful spell is never cast this way."])
-	p:Choice(L["Razer Naga side plate"], { { "none", L["None: keys 1 to 5"] }, { "12", L["12 keys: 1 to ="] }, { "6", L["6 keys: 4 5 6 and 1 2 3"] }, { "2", L["2 keys: mouse 4 and 5"] } },
+	p:Choice(L["Razer Naga side plate"], { { "none", L["None: keys 1 to 5"] }, { "12", L["12 keys (3 wide, 4 high)"] }, { "6", L["6 keys (2 wide, 3 high)"] }, { "2", L["2 keys: mouse 4 and 5"] } },
 		function() return B:Plate() end, function(v) B:SetPlate(v) end)
+	-- the keys the Synapse buttons send; learned keys come from Nagas of Azeroth
+	local keysets = { { "standard", L["Standard: 1 to ="] }, { "numpad", L["Numpad: Num1 to Num+"] } }
+	if B:KeysetChoice() == "learned" then keysets[#keysets + 1] = { "learned", L["Learned (Nagas of Azeroth)"] } end
+	p:Choice(L["Razer Naga keys"], keysets, function() return B:KeysetChoice() end, function(v)
+		if InCombatLockdown() then return HoA:Print(L["Not in combat: try again after the fight."]) end
+		B:SetKeyset(v)
+	end)
 	p:Check(L["Also Shift, Ctrl and Alt + each plate key"], L["Set Synapse's Hypershift to Shift, Ctrl or Alt: four layers on one plate."], naga("mods"))
+	p:Note(L["Numpad keys: NumLock turns Shift + Num into other keys, so the Shift layer is off. Use Ctrl and Alt in Hypershift."])
 	p:Check(L["Tooltip on a frame: what your hover keys do"], nil, opt("hoverTooltip"))
 	p:Gap()
 	p:Button(L["Back to the class defaults"], function() B:Reset() end, 200)

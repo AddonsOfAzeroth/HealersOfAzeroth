@@ -614,7 +614,7 @@ function F:HoverTip(b)
 	if not (c.hoverTooltip and c.hoverKeys) then return end
 	local B = HoA.Bindings
 	local mod = heldMod()
-	if #B:HoverMods() == 1 then mod = "" end
+	if #B:HoverMods() == 1 or (mod == "shift-" and not B:ShiftOn()) then mod = "" end
 	local lines = B:HoverLines(mod)
 	if #lines == 0 then return end
 	self.tipFor = b

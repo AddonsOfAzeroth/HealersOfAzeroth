@@ -136,11 +136,14 @@ function V:Plan()
 	local groups, skipped = {}, {}
 	self.busy = false
 	if not on() then return groups, skipped end
-	for _, key in ipairs(B:HoverKeys()) do
+	-- the plate's keys as the keyset sends them (a skipped button has none);
+	-- the spells are stored per button number
+	local info = B:PlateInfo()
+	for i, key in ipairs(info.keys) do
 		local layers = {}
-		for _, m in ipairs(B:HoverMods()) do
+		for _, m in ipairs(key and B:HoverMods() or {}) do
 			local full = m[1]:upper() .. key
-			local kind, spell = B:Resolve(B:HoverName(m[1], key))
+			local kind, spell = B:Resolve(B:HoverName(m[1], info.ids[i]))
 			if kind == "spell" and type(spell) == "string" then
 				local fb, action = self:Read(full)
 				self.fallback[full] = fb
