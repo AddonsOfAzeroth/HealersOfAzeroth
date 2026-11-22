@@ -21,7 +21,7 @@ B.HOVER_KEYS = { "1", "2", "3", "4", "5" }
 B.PLATES = {
 	none = { keys = B.HOVER_KEYS, cols = 5 },
 	["12"] = { keys = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=" }, cols = 3 },
-	["6"] = { keys = { "5", "1", "6", "2", "7", "3" }, cols = 2 }, -- Synapse: left column 5 6 7, right column 1 2 3
+	["6"] = { keys = { "4", "1", "5", "2", "6", "3" }, cols = 2 }, -- Synapse: left column 4 5 6, right column 1 2 3
 	["2"] = { keys = { "BUTTON4", "BUTTON5" }, cols = 1 },
 }
 B.PLATE_ORDER = { "none", "12", "6", "2" }
